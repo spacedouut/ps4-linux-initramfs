@@ -29,6 +29,7 @@
 
 # Load functions.
 . /functions.sh
+. /psfunctions.sh
 
 run_hooks init
 
@@ -95,40 +96,18 @@ use tuxonice TuxOnIceResume
 run_hooks pre_newroot_mount
 
 
-# # PS4 specific section:
-echo "Setting up (en)crypt(ted) mount setup for PlayStation 4 HDD." 
-echo "Using PS4 11xx model and later partition encryption scheme. . ."
-sleep 4
-cryptsetup -d /key/eap_hdd_key.bin --cipher aes-xts-plain64 -s 256 --offset 0 --skip 111669149696 create ps4hdd /dev/sd?27
-echo "Finished cryptsetup. Mounting the encrypted drive. . ."
+# PS4-specific section ----------------------------------------------------
+ps4_init_hdd
+ps4_main_menu
 
-mkdir /ps4hdd
-mount -t ufs -o ufstype=ufs2 /dev/mapper/ps4hdd /ps4hdd
-
-# dmesg > /ps4hdd/system/boot/dmesg_"$(uname -r)"
-choose_boot_os
-
-###
-#if [ -f /ps4hdd/home/Arch.img ]; then
-#	echo ""
-#else
-#	echo "No Arch.img found in /ps4hdd/home/ , reentering rescueshell"
-#	rescueshell
-#fi
-###
-
-choose_os_offset
-setup_img_loop_device
-os_filesystem_check
-
-mount /dev/loop0 /newroot
-if [ -f /newroot/home/eap_hdd_key.bin ]; then
-	echo ''
-else
-	cp /key/eap_hdd_key.bin /newroot/home/eap_hdd_key.bin
+# If menu returned without mounting, loop back.
+if ! mountpoint -q /newroot; then
+    ewarn "No boot target selected. Returning to menu."
+    ps4_main_menu
 fi
 
-# # End of PS4 specific section
+ps4_copy_key
+# End of PS4-specific section
 
 emount /newroot
 emount /newroot/usr #new!!
@@ -140,13 +119,7 @@ moveDev
 eumount /sys /proc
 run_hooks pre_switch_root
 
-# # PS4 specific section:
-#
-if [ ! -d /newroot/ps4hdd ]; then
-	mkdir /newroot/ps4hdd
-fi
-mount /ps4hdd /newroot/ps4hdd
-# # End of PS4 specific section
+ps4_mount_ps4hdd
 
 boot_newroot
 
